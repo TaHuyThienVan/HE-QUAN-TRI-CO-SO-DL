@@ -1,0 +1,26 @@
+
+  port: 8081
+
+spring:
+  datasource:
+    url: jdbc:sqlserver://localhost:1433;databaseName=elearning;encrypt=false;trustServerCertificate=true;instanceName=SQLEXPRESS
+    username: webmath_user
+    password: password123
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+        format_sql: true
+    open-in-view: false
+
+
+  flyway:
+    enabled: false
+
+# Cho phép FE Next.js gọi API
+cors:
+  origins: http://localhost:3000

@@ -1,0 +1,20 @@
+import os
+import pandas as pd
+
+# Tự động đọc file CSV cùng thư mục
+base_path = os.path.dirname(__file__)
+file_path = os.path.join(base_path, "HotelBookings.csv")
+
+# Đọc dữ liệu
+df = pd.read_csv(file_path)
+
+# Kiểm tra xem có đủ cột cần thiết
+required_cols = {"stays_in_weekend_nights", "stays_in_week_nights"}
+if required_cols.issubset(df.columns):
+    # Tính tổng số đêm
+    total_nights = (df["stays_in_weekend_nights"] + df["stays_in_week_nights"]).sum()
+
+    # In đúng format yêu cầu
+    print(f"Total nights: {int(total_nights)}")
+else:
+    print("Missing required columns!")
