@@ -16,6 +16,9 @@ public interface TutorRepository extends JpaRepository<Tutor, Long> {
     // Find by user ID
     Optional<Tutor> findByUserId(Long userId);
     
+    // Find by employee ID
+    Optional<Tutor> findByEmployeeId(String employeeId);
+    
     // Find by approval status
     List<Tutor> findByApprovalStatus(ApprovalStatus status);
     

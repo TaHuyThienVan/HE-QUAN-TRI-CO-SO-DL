@@ -4,6 +4,8 @@ import com.mathbridge.be_project.common.SessionStatus;
 import com.mathbridge.be_project.student.Student;
 import com.mathbridge.be_project.student.StudentRepository;
 import com.mathbridge.be_project.tutor.Tutor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,8 @@ import java.util.Optional;
 @Service
 @Transactional
 public class SessionService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(SessionService.class);
     
     @Autowired
     private SessionRepository sessionRepository;
@@ -124,14 +128,15 @@ public class SessionService {
             }
             
             student = students.get(0);
-            System.out.println("WARNING: No student selected, using first student from database. Student ID: " + student.getId() + ", Name: " + student.getFullName());
+            logger.warn("No student selected, using first student from database. Student ID: {}, Name: {}", 
+                student.getId(), student.getFullName());
             // Verify student has an ID
             if (student.getId() == null) {
                 throw new RuntimeException("Học sinh không hợp lệ: ID không tồn tại");
             }
         }
         
-        System.out.println("Creating session with Student ID: " + student.getId() + ", Name: " + student.getFullName());
+        logger.debug("Creating session with Student ID: {}, Name: {}", student.getId(), student.getFullName());
         
         // Final verification: ensure student ID is valid
         if (student == null || student.getId() == null) {
@@ -203,28 +208,38 @@ public class SessionService {
         return sessionRepository.findByStatus(status);
     }
     
-    // Get upcoming sessions for tutor
+    // Get upcoming sessions for tutor - FIXED
     @Transactional(readOnly = true)
     public List<Session> getUpcomingSessionsForTutor(Long tutorId) {
-        return sessionRepository.findUpcomingSessionsForTutor(tutorId, LocalDateTime.now());
+        return sessionRepository.findUpcomingSessionsForTutor(
+            tutorId, 
+            LocalDateTime.now(),
+            SessionStatus.SCHEDULED,
+            SessionStatus.CONFIRMED
+        );
     }
     
-    // Get upcoming sessions for student
+    // Get upcoming sessions for student - FIXED
     @Transactional(readOnly = true)
     public List<Session> getUpcomingSessionsForStudent(Long studentId) {
-        return sessionRepository.findUpcomingSessionsForStudent(studentId, LocalDateTime.now());
+        return sessionRepository.findUpcomingSessionsForStudent(
+            studentId, 
+            LocalDateTime.now(),
+            SessionStatus.SCHEDULED,
+            SessionStatus.CONFIRMED
+        );
     }
     
-    // Get completed sessions for tutor
+    // Get completed sessions for tutor - FIXED
     @Transactional(readOnly = true)
     public List<Session> getCompletedSessionsForTutor(Long tutorId) {
-        return sessionRepository.findCompletedSessionsForTutor(tutorId);
+        return sessionRepository.findCompletedSessionsForTutor(tutorId, SessionStatus.COMPLETED);
     }
     
-    // Get completed sessions for student
+    // Get completed sessions for student - FIXED
     @Transactional(readOnly = true)
     public List<Session> getCompletedSessionsForStudent(Long studentId) {
-        return sessionRepository.findCompletedSessionsForStudent(studentId);
+        return sessionRepository.findCompletedSessionsForStudent(studentId, SessionStatus.COMPLETED);
     }
     
     // Get sessions by date range
@@ -408,11 +423,13 @@ public class SessionService {
             // Save with transaction - if conflict occurs here, database will throw exception
             Session savedSession = sessionRepository.save(session);
             
-            // Double-check after save (final verification)
+            // Double-check after save (final verification) - FIXED
             List<Session> postSaveConflicts = sessionRepository.findConflictingSessions(
                 tutor.getId(), 
                 scheduledDate, 
-                scheduledDate.plusMinutes(duration)
+                scheduledDate.plusMinutes(duration),
+                SessionStatus.SCHEDULED,
+                SessionStatus.CONFIRMED
             );
             
             // If we find conflicts other than our own session, something went wrong

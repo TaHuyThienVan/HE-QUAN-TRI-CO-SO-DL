@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -27,6 +29,8 @@ import java.util.Optional;
 @RequestMapping("/api/sessions")
 @Tag(name = "Session Management", description = "APIs for managing tutoring sessions")
 public class SessionController {
+    
+    private static final Logger logger = LoggerFactory.getLogger(SessionController.class);
     
     @Autowired
     private SessionService sessionService;
@@ -108,7 +112,7 @@ public class SessionController {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(createErrorResponse(errorMessage != null ? errorMessage : "Lỗi khi đặt lịch học"));
         } catch (Exception e) {
-            e.printStackTrace(); // Log for debugging
+            logger.error("Error scheduling session", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(createErrorResponse("Lỗi khi đặt lịch học: " + (e.getMessage() != null ? e.getMessage() : "Lỗi không xác định")));
         }
@@ -152,7 +156,7 @@ public class SessionController {
             }
             return ResponseEntity.ok(sessions);
         } catch (Exception e) {
-            e.printStackTrace(); // Log for debugging
+            logger.error("Error getting tutor sessions", e);
             // Return empty array on error instead of error response
             // This prevents the page from breaking
             return ResponseEntity.ok(new java.util.ArrayList<>());
@@ -244,20 +248,20 @@ public class SessionController {
                 // Save directly using repository
                 student = studentRepository.save(student);
                 studentOpt = Optional.of(student);
-                System.out.println("Auto-created Student record for user: " + currentUser.getEmail() + ", Student ID: " + student.getId());
+                logger.info("Auto-created Student record for user: {}, Student ID: {}", currentUser.getEmail(), student.getId());
             }
             
             if (studentOpt.isEmpty()) {
                 // Return empty array if still no student record
-                System.out.println("No student record found for user: " + currentUser.getEmail());
+                logger.warn("No student record found for user: {}", currentUser.getEmail());
                 return ResponseEntity.ok(new java.util.ArrayList<>());
             }
             
             Student student = studentOpt.get();
-            System.out.println("Getting sessions for student ID: " + student.getId() + ", User: " + currentUser.getEmail());
+            logger.debug("Getting sessions for student ID: {}, User: {}", student.getId(), currentUser.getEmail());
             
             List<Session> sessions = sessionService.getSessionsByStudent(student.getId());
-            System.out.println("Found " + (sessions != null ? sessions.size() : 0) + " sessions for student ID: " + student.getId());
+            logger.debug("Found {} sessions for student ID: {}", sessions != null ? sessions.size() : 0, student.getId());
             
             // Ensure we always return a list, even if empty
             if (sessions == null) {
@@ -266,15 +270,16 @@ public class SessionController {
             
             // Log session details for debugging
             if (sessions != null && !sessions.isEmpty()) {
-                System.out.println("First session details: ID=" + sessions.get(0).getId() + 
-                    ", Subject=" + sessions.get(0).getSubject() + 
-                    ", Tutor=" + (sessions.get(0).getTutor() != null ? sessions.get(0).getTutor().getId() : "null") +
-                    ", Student=" + (sessions.get(0).getStudent() != null ? sessions.get(0).getStudent().getId() : "null"));
+                logger.debug("First session details: ID={}, Subject={}, Tutor={}, Student={}", 
+                    sessions.get(0).getId(),
+                    sessions.get(0).getSubject(),
+                    sessions.get(0).getTutor() != null ? sessions.get(0).getTutor().getId() : "null",
+                    sessions.get(0).getStudent() != null ? sessions.get(0).getStudent().getId() : "null");
             }
             
             return ResponseEntity.ok(sessions);
         } catch (Exception e) {
-            e.printStackTrace(); // Log for debugging
+            logger.error("Error getting student sessions", e);
             // Return empty array on error instead of error response
             // This prevents the page from breaking
             return ResponseEntity.ok(new java.util.ArrayList<>());
@@ -496,7 +501,7 @@ public class SessionController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(createErrorResponse(errorMessage != null ? errorMessage : "Lỗi khi đăng ký học phần"));
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error booking session", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Lỗi hệ thống: " + (e.getMessage() != null ? e.getMessage() : "Lỗi không xác định")));
         }
@@ -511,7 +516,7 @@ public class SessionController {
             List<java.util.Map<String, Object>> slots = sessionService.getAvailableSlots(tutorId, date);
             return ResponseEntity.ok(slots);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error getting available slots", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Lỗi khi lấy danh sách slot: " + e.getMessage()));
         }
@@ -524,7 +529,7 @@ public class SessionController {
             List<Tutor> tutors = tutorService.getApprovedTutors();
             return ResponseEntity.ok(tutors);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error getting tutors", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Lỗi khi lấy danh sách giảng viên: " + e.getMessage()));
         }

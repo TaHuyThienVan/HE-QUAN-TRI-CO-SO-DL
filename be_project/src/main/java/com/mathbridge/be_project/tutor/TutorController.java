@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -26,6 +28,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class TutorController {
     
+    private static final Logger logger = LoggerFactory.getLogger(TutorController.class);
     private final TutorService tutorService;
     private final UserService userService;
     
@@ -81,7 +84,7 @@ public class TutorController {
                 return ResponseEntity.ok(new java.util.HashMap<>());
             }
         } catch (Exception e) {
-            e.printStackTrace(); // Log for debugging
+            logger.error("Error getting tutor info", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Lỗi khi lấy thông tin giảng viên: " + e.getMessage()));
         }

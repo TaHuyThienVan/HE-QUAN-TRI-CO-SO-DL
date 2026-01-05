@@ -56,22 +56,18 @@
     </dependency>
 
     <!-- MySQL Driver (tùy chọn) -->
-    <!--
     <dependency>
       <groupId>com.mysql</groupId>
       <artifactId>mysql-connector-j</artifactId>
       <scope>runtime</scope>
     </dependency>
-    -->
 
     <!-- PostgreSQL Driver (tùy chọn) -->
-    <!--
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
       <scope>runtime</scope>
     </dependency>
-    -->
 
     <!-- Flyway DB migration -->
     <dependency>

@@ -4,6 +4,8 @@ import com.mathbridge.be_project.user.UserService;
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,6 +18,7 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthFilter.class);
     private final JwtUtils jwtUtils;
     private final UserService userService;
 
@@ -29,19 +32,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = authHeader.substring(7);
-        if (jwtUtils.isTokenValid(token)) {
-            String email = jwtUtils.extractEmail(token);
-            var user = userService.getUserByEmail(email).orElse(null);
+        try {
+            String token = authHeader.substring(7);
+            if (jwtUtils.isTokenValid(token)) {
+                String email = jwtUtils.extractEmail(token);
+                var user = userService.getUserByEmail(email).orElse(null);
 
-            if (user != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                // Create authorities from user role
-                var authorities = java.util.List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(email, null, authorities);
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (user != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    // Create authorities from user role
+                    var authorities = java.util.List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(email, null, authorities);
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (Exception e) {
+            logger.debug("JWT authentication failed", e);
         }
 
         filterChain.doFilter(request, response);

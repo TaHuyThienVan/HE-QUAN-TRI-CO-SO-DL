@@ -52,35 +52,42 @@ public interface SessionRepository extends JpaRepository<Session, Long> {
                                            @Param("startDate") LocalDateTime startDate,
                                            @Param("endDate") LocalDateTime endDate);
     
-    // Find upcoming sessions for tutor
-    @Query("SELECT s FROM Session s WHERE s.tutor.id = :tutorId AND s.scheduledDate > :now AND s.status IN ('SCHEDULED', 'CONFIRMED') ORDER BY s.scheduledDate ASC")
-    List<Session> findUpcomingSessionsForTutor(@Param("tutorId") Long tutorId, @Param("now") LocalDateTime now);
+    // Find upcoming sessions for tutor - FIXED for database compatibility
+    @Query("SELECT s FROM Session s WHERE s.tutor.id = :tutorId AND s.scheduledDate > :now AND (s.status = :status1 OR s.status = :status2) ORDER BY s.scheduledDate ASC")
+    List<Session> findUpcomingSessionsForTutor(@Param("tutorId") Long tutorId, 
+                                              @Param("now") LocalDateTime now,
+                                              @Param("status1") SessionStatus status1,
+                                              @Param("status2") SessionStatus status2);
     
-    // Find upcoming sessions for student
-    @Query("SELECT s FROM Session s WHERE s.student.id = :studentId AND s.scheduledDate > :now AND s.status IN ('SCHEDULED', 'CONFIRMED') ORDER BY s.scheduledDate ASC")
-    List<Session> findUpcomingSessionsForStudent(@Param("studentId") Long studentId, @Param("now") LocalDateTime now);
+    // Find upcoming sessions for student - FIXED for database compatibility
+    @Query("SELECT s FROM Session s WHERE s.student.id = :studentId AND s.scheduledDate > :now AND (s.status = :status1 OR s.status = :status2) ORDER BY s.scheduledDate ASC")
+    List<Session> findUpcomingSessionsForStudent(@Param("studentId") Long studentId,
+                                                  @Param("now") LocalDateTime now,
+                                                  @Param("status1") SessionStatus status1,
+                                                  @Param("status2") SessionStatus status2);
     
-    // Find completed sessions for tutor
-    @Query("SELECT s FROM Session s WHERE s.tutor.id = :tutorId AND s.status = 'COMPLETED' ORDER BY s.scheduledDate DESC")
-    List<Session> findCompletedSessionsForTutor(@Param("tutorId") Long tutorId);
+    // Find completed sessions for tutor - FIXED for database compatibility
+    @Query("SELECT s FROM Session s WHERE s.tutor.id = :tutorId AND s.status = :status ORDER BY s.scheduledDate DESC")
+    List<Session> findCompletedSessionsForTutor(@Param("tutorId") Long tutorId, @Param("status") SessionStatus status);
     
-    // Find completed sessions for student
-    @Query("SELECT s FROM Session s WHERE s.student.id = :studentId AND s.status = 'COMPLETED' ORDER BY s.scheduledDate DESC")
-    List<Session> findCompletedSessionsForStudent(@Param("studentId") Long studentId);
+    // Find completed sessions for student - FIXED for database compatibility
+    @Query("SELECT s FROM Session s WHERE s.student.id = :studentId AND s.status = :status ORDER BY s.scheduledDate DESC")
+    List<Session> findCompletedSessionsForStudent(@Param("studentId") Long studentId, @Param("status") SessionStatus status);
     
     // Find sessions by subject
     @Query("SELECT s FROM Session s WHERE LOWER(s.subject) LIKE LOWER(CONCAT('%', :subject, '%'))")
     List<Session> findBySubject(@Param("subject") String subject);
     
-    // Check for conflicting sessions
-    // Get all scheduled/confirmed sessions for tutor, then filter in Java for better compatibility
+    // Check for conflicting sessions - FIXED for database compatibility
     @Query("SELECT s FROM Session s WHERE " +
            "s.tutor.id = :tutorId AND " +
-           "s.status IN ('SCHEDULED', 'CONFIRMED') AND " +
+           "(s.status = :status1 OR s.status = :status2) AND " +
            "s.scheduledDate >= :startTime AND s.scheduledDate < :endTime")
     List<Session> findConflictingSessions(@Param("tutorId") Long tutorId,
                                         @Param("startTime") LocalDateTime startTime,
-                                        @Param("endTime") LocalDateTime endTime);
+                                        @Param("endTime") LocalDateTime endTime,
+                                        @Param("status1") SessionStatus status1,
+                                        @Param("status2") SessionStatus status2);
     
     // Count sessions by status for tutor
     @Query("SELECT COUNT(s) FROM Session s WHERE s.tutor.id = :tutorId AND s.status = :status")

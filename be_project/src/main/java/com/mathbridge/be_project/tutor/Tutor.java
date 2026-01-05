@@ -123,17 +123,17 @@ public class Tutor {
         this.user = user;
     }
 
-    // Getter methods for JSON serialization (frontend needs these)
+    // Getter methods for JSON serialization (frontend needs these) - FIXED null pointer
     public String getFullName() {
-        return user != null ? user.getFullName() : null;
+        return user != null && user.getFullName() != null ? user.getFullName() : "";
     }
 
     public String getEmail() {
-        return user != null ? user.getEmail() : null;
+        return user != null && user.getEmail() != null ? user.getEmail() : "";
     }
 
     public String getPhone() {
-        return user != null ? user.getPhone() : null;
+        return user != null && user.getPhone() != null ? user.getPhone() : "";
     }
 
     public String getEmployeeId() {

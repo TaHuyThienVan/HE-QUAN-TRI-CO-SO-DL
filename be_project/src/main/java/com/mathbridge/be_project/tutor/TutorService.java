@@ -3,6 +3,8 @@ package com.mathbridge.be_project.tutor;
 import com.mathbridge.be_project.common.ApprovalStatus;
 import com.mathbridge.be_project.user.User;
 import com.mathbridge.be_project.user.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,8 @@ import java.util.Optional;
 @Service
 @Transactional
 public class TutorService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(TutorService.class);
     
     @Autowired
     private TutorRepository tutorRepository;
@@ -94,18 +98,18 @@ public class TutorService {
         if (request.getFullName() != null && !request.getFullName().trim().isEmpty()) {
             userToUpdate.setFullName(request.getFullName().trim());
             userUpdated = true;
-            System.out.println("Updating user fullName to: " + userToUpdate.getFullName());
+            logger.debug("Updating user fullName to: {}", userToUpdate.getFullName());
         }
         // Update phone if provided (can be null to clear the field)
         // Check if phone field is present in request (not null means it was sent)
         if (request.getPhone() != null) {
             userToUpdate.setPhone(request.getPhone().trim().isEmpty() ? null : request.getPhone().trim());
             userUpdated = true;
-            System.out.println("Updating user phone to: " + userToUpdate.getPhone());
+            logger.debug("Updating user phone to: {}", userToUpdate.getPhone());
         }
         if (userUpdated) {
             User savedUser = userService.updateUser(userToUpdate);
-            System.out.println("User updated successfully. FullName: " + savedUser.getFullName() + ", Phone: " + savedUser.getPhone());
+            logger.debug("User updated successfully. FullName: {}, Phone: {}", savedUser.getFullName(), savedUser.getPhone());
             // Update tutor's user reference to the saved user
             tutor.setUser(savedUser);
         }
@@ -113,12 +117,25 @@ public class TutorService {
         return tutorRepository.save(tutor);
     }
 
-    // Generate unique employee ID
+    // Generate unique employee ID - FIXED to prevent duplicates
     private String generateEmployeeId() {
-        // Format: GV + random 6 digits
         String prefix = "GV";
-        int randomNum = (int) (Math.random() * 900000) + 100000; // 100000-999999
-        return prefix + randomNum;
+        String employeeId;
+        int attempts = 0;
+        do {
+            // Use timestamp + random to ensure uniqueness
+            long timestamp = System.currentTimeMillis();
+            int randomNum = (int) (Math.random() * 1000);
+            employeeId = prefix + String.format("%06d", (timestamp % 1000000) + randomNum);
+            attempts++;
+            if (attempts > 10) {
+                // Fallback: use UUID hash if still conflicts
+                employeeId = prefix + String.format("%06d", Math.abs(employeeId.hashCode() % 1000000));
+                break;
+            }
+        } while (tutorRepository.findByEmployeeId(employeeId).isPresent());
+        
+        return employeeId;
     }
 
     // Get tutor by user

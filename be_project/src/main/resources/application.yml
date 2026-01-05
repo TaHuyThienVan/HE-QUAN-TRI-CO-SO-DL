@@ -38,6 +38,11 @@ spring:
   flyway:
     enabled: false
 
+# JWT Configuration
+jwt:
+  secret: MathBridge_Secret_Key_2024_Change_In_Production_256bit_Minimum_Required_Length_For_HS256_Algorithm
+  expiration-ms: 86400000  # 24 hours
+
 # Cho phép FE Next.js gọi API
 cors:
   origins: http://localhost:3000
