@@ -523,10 +523,11 @@ public class SessionController {
     }
     
     @GetMapping("/tutors")
-    @Operation(summary = "Get all approved tutors", description = "Get list of approved tutors for booking")
-    public ResponseEntity<?> getAvailableTutors() {
+    @Operation(summary = "Get approved tutors for booking", description = "Get list of approved tutors for booking, optionally filtered by subject")
+    public ResponseEntity<?> getAvailableTutors(
+            @Parameter(description = "Subject to filter tutors by") @RequestParam(required = false) String subject) {
         try {
-            List<Tutor> tutors = tutorService.getApprovedTutors();
+            List<Tutor> tutors = tutorService.getApprovedTutorsBySubject(subject);
             return ResponseEntity.ok(tutors);
         } catch (Exception e) {
             logger.error("Error getting tutors", e);

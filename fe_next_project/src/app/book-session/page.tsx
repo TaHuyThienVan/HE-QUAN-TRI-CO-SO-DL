@@ -55,8 +55,9 @@ export default function BookSessionPage() {
             router.replace("/student");
             return;
         }
-        
-        loadTutors();
+
+        // Lần đầu: load danh sách giảng viên theo môn mặc định
+        loadTutors("Toán học");
     }, [router]);
 
     // Set default date to today
@@ -65,19 +66,26 @@ export default function BookSessionPage() {
         setSelectedDate(today);
     }, []);
 
-    // Load tutors
-    const loadTutors = async () => {
+    // Load tutors (có thể lọc theo môn học)
+    const loadTutors = async (filterSubject?: string) => {
         try {
             setLoading(true);
             setError(null);
-            const tutorsList = await apiCall<Tutor[]>("/api/sessions/tutors");
+            const query = filterSubject && filterSubject.trim().length > 0
+                ? `/api/sessions/tutors?subject=${encodeURIComponent(filterSubject.trim())}`
+                : "/api/sessions/tutors";
+            const tutorsList = await apiCall<Tutor[]>(query);
             if (tutorsList && Array.isArray(tutorsList)) {
                 setTutors(tutorsList);
-                if (tutorsList.length > 0 && !selectedTutor) {
-                    setSelectedTutor(tutorsList[0].id);
+                if (tutorsList.length > 0) {
+                    const stillExists = selectedTutor && tutorsList.some(t => t.id === selectedTutor);
+                    setSelectedTutor(stillExists ? selectedTutor : tutorsList[0].id);
+                } else {
+                    setSelectedTutor(null);
                 }
             } else {
                 setTutors([]);
+                setSelectedTutor(null);
             }
         } catch (err: any) {
             console.error("Error loading tutors:", err);
@@ -87,6 +95,11 @@ export default function BookSessionPage() {
             setLoading(false);
         }
     };
+
+    // Reload danh sách giảng viên khi thay đổi môn học
+    useEffect(() => {
+        loadTutors(subject);
+    }, [subject]);
 
     // Load available slots
     const loadSlots = useCallback(async (tutorId: number, date: string) => {

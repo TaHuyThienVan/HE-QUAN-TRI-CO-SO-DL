@@ -181,6 +181,30 @@ public class TutorService {
         return tutorRepository.findByApprovalStatusOrderByRatingDesc(ApprovalStatus.APPROVED);
     }
     
+    // Get approved tutors filtered by subject (for course registration)
+    @Transactional(readOnly = true)
+    public List<Tutor> getApprovedTutorsBySubject(String subject) {
+        // If no subject specified, return all approved tutors
+        if (subject == null || subject.trim().isEmpty()) {
+            return getApprovedTutors();
+        }
+        
+        String normalizedSubject = subject.trim();
+        // Reuse searchTutors to ensure only APPROVED tutors are returned
+        BigDecimal minRate = BigDecimal.ZERO;
+        BigDecimal maxRate = new BigDecimal("999999999");
+        BigDecimal minRating = BigDecimal.ZERO;
+        Integer minExperience = 0;
+        
+        return tutorRepository.searchTutors(
+                normalizedSubject,
+                minRate,
+                maxRate,
+                minRating,
+                minExperience
+        );
+    }
+    
     // Get pending tutors
     @Transactional(readOnly = true)
     public List<Tutor> getPendingTutors() {
