@@ -11,6 +11,8 @@ export interface RegisterRequest {
   email: string;
   password: string;
   role?: string; // Optional, BE sẽ có default
+  subjects?: string;
+  availableTime?: string;
 }
 
 export interface AuthResponse {

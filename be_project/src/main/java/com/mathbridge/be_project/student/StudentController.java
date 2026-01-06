@@ -30,6 +30,11 @@ public class StudentController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(createErrorResponse("Bạn cần đăng nhập để lưu thông tin học sinh"));
             }
+            // Chỉ cho phép tài khoản STUDENT tạo/cập nhật hồ sơ học sinh
+            if (currentUser.getRole() != com.mathbridge.be_project.common.UserRole.STUDENT) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(createErrorResponse("Chỉ tài khoản học sinh mới được lưu hồ sơ học sinh"));
+            }
             Student student = studentService.createStudent(currentUser, request);
             return ResponseEntity.ok(student);
         } catch (IllegalArgumentException e) {
@@ -48,6 +53,11 @@ public class StudentController {
             if (currentUser == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(createErrorResponse("Bạn cần đăng nhập để lưu thông tin học sinh"));
+            }
+            // Chỉ cho phép tài khoản STUDENT tạo/cập nhật hồ sơ học sinh
+            if (currentUser.getRole() != com.mathbridge.be_project.common.UserRole.STUDENT) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(createErrorResponse("Chỉ tài khoản học sinh mới được lưu hồ sơ học sinh"));
             }
             Student student = studentService.createStudent(currentUser, request);
             return ResponseEntity.ok(student);

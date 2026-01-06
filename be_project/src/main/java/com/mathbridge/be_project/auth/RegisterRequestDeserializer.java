@@ -41,6 +41,14 @@ public class RegisterRequestDeserializer extends JsonDeserializer<RegisterReques
                 }
             }
         }
+
+        // Các thông tin bổ sung cho giảng viên
+        if (node.has("subjects")) {
+            request.setSubjects(node.get("subjects").asText());
+        }
+        if (node.has("availableTime")) {
+            request.setAvailableTime(node.get("availableTime").asText());
+        }
         
         return request;
     }

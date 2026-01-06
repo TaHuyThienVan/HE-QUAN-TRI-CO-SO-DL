@@ -55,6 +55,9 @@ public class Tutor {
     @Column(name = "subjects", length = 1000)
     private String subjects;
 
+    @Column(name = "available_time", length = 255)
+    private String availableTime;
+
     @DecimalMin(value = "0.0", message = "Hourly rate must be non-negative")
     @Column(name = "hourly_rate", precision = 10, scale = 2)
     private BigDecimal hourlyRate = BigDecimal.ZERO;
@@ -214,6 +217,14 @@ public class Tutor {
 
     public void setSubjects(String subjects) {
         this.subjects = subjects;
+    }
+
+    public String getAvailableTime() {
+        return availableTime;
+    }
+
+    public void setAvailableTime(String availableTime) {
+        this.availableTime = availableTime;
     }
 
     public BigDecimal getHourlyRate() {

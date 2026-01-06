@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const backendUrl = process.env.BACKEND_URL || 'http://localhost:8081';
+    // Dùng chung biến NEXT_PUBLIC_API_URL để đồng bộ với các route khác
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
 
     let beRes: Response;
     try {

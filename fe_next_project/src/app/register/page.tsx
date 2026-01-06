@@ -12,7 +12,17 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<"STUDENT" | "TEACHER">("STUDENT");
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [availableTime, setAvailableTime] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const subjectOptions = [
+    "Toán cơ bản",
+    "Toán nâng cao",
+    "Olympic",
+    "Luyện thi THPT",
+    "SAT/GMAT",
+  ];
 
   //  Hàm xử lý khi nhấn nút Đăng ký
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,10 +33,27 @@ export default function RegisterPage() {
       return;
     }
 
+    if (role === "TEACHER") {
+      if (!subjects.length) {
+        alert("Vui lòng chọn ít nhất một môn giảng dạy.");
+        return;
+      }
+      if (!availableTime.trim()) {
+        alert("Vui lòng nhập khung giờ nhận lớp.");
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
-      await register({ email, password, role });
+      await register({
+        email,
+        password,
+        role,
+        subjects: role === "TEACHER" ? subjects.join(", ") : undefined,
+        availableTime: role === "TEACHER" ? availableTime : undefined,
+      });
       if (role === "TEACHER") {
         alert("🎉 Đăng ký giảng viên thành công! Hãy đăng nhập tại cổng giảng viên nhé!");
         router.push("/login-teacher");
@@ -40,6 +67,12 @@ export default function RegisterPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleSubject = (value: string) => {
+    setSubjects((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
   };
 
   return (
@@ -145,7 +178,13 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   key={option.value}
-                  onClick={() => setRole(option.value as "STUDENT" | "TEACHER")}
+                  onClick={() => {
+                    setRole(option.value as "STUDENT" | "TEACHER");
+                    if (option.value === "STUDENT") {
+                      setSubjects([]);
+                      setAvailableTime("");
+                    }
+                  }}
                   className={`rounded-2xl border px-4 py-3 text-left transition ${
                     role === option.value
                       ? "border-orange-500 bg-orange-50"
@@ -161,6 +200,54 @@ export default function RegisterPage() {
               Lựa chọn này được lưu xuống cơ sở dữ liệu để phân quyền khi đăng nhập.
             </p>
           </div>
+
+          {role === "TEACHER" && (
+            <div className="space-y-4 rounded-2xl border border-orange-100 bg-orange-50/70 p-4">
+              <div>
+                <p className="mb-2 text-sm font-semibold text-orange-700">Môn giảng dạy</p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {subjectOptions.map((subject) => (
+                    <label
+                      key={subject}
+                      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
+                        subjects.includes(subject)
+                          ? "border-orange-500 bg-white"
+                          : "border-gray-200 bg-white/80 hover:border-orange-300"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={subjects.includes(subject)}
+                        onChange={() => toggleSubject(subject)}
+                        className="accent-orange-500"
+                      />
+                      <span className="text-black">{subject}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-gray-600">
+                  Chọn ít nhất một môn, sẽ được lưu vào hồ sơ giảng viên.
+                </p>
+              </div>
+
+              <div>
+                <label className="block mb-1 text-sm font-semibold text-orange-700">
+                  Khung giờ nhận lớp
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: Tối 19h-21h các ngày trong tuần; Cuối tuần 8h-11h"
+                  value={availableTime}
+                  onChange={(e) => setAvailableTime(e.target.value)}
+                  className="w-full rounded-lg border border-orange-200 px-3 py-2 text-black placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  required
+                />
+                <p className="mt-1 text-xs text-gray-600">
+                  Thông tin này lưu vào DB để admin phân lịch dạy.
+                </p>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"

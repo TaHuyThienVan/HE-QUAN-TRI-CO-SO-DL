@@ -33,10 +33,12 @@ function isHttps(req: NextRequest): boolean {
 export async function POST(req: NextRequest) {
   try {
     // Đọc & kiểm tra đầu vào
-    const { email, password, role } = (await req.json()) as {
+    const { email, password, role, subjects, availableTime } = (await req.json()) as {
       email?: string;
       password?: string;
       role?: string;
+      subjects?: string;
+      availableTime?: string;
     };
 
     if (!email || !password) {
@@ -46,7 +48,7 @@ export async function POST(req: NextRequest) {
 
     // Gọi API backend
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
-    const requestBody: { email: string; password: string; role?: string } = {
+    const requestBody: { email: string; password: string; role?: string; subjects?: string; availableTime?: string } = {
       email,
       password,
     };
@@ -54,6 +56,12 @@ export async function POST(req: NextRequest) {
     // Chỉ thêm role nếu có
     if (role) {
       requestBody.role = role;
+    }
+    if (subjects) {
+      requestBody.subjects = subjects;
+    }
+    if (availableTime) {
+      requestBody.availableTime = availableTime;
     }
 
     const response = await fetch(`${backendUrl}/api/auth/register`, {

@@ -14,4 +14,7 @@ public class RegisterRequest {
     private String email;
     private String password;
     private UserRole role;
+    // Thông tin bổ sung cho giảng viên
+    private String subjects;
+    private String availableTime;
 }

@@ -84,6 +84,8 @@ public class AuthService {
             // Generate employeeId: GV + 6 random digits
             String employeeId = "GV" + String.format("%06d", (int)(Math.random() * 900000) + 100000);
             tutor.setEmployeeId(employeeId);
+            tutor.setSubjects(request.getSubjects());
+            tutor.setAvailableTime(request.getAvailableTime());
             tutorRepository.save(tutor);
         }
         

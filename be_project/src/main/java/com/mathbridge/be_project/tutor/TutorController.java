@@ -41,6 +41,11 @@ public class TutorController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(createErrorResponse("Bạn cần đăng nhập để lưu thông tin giảng viên"));
             }
+            // Chỉ cho phép tài khoản TUTOR tạo/cập nhật hồ sơ giảng viên
+            if (currentUser.getRole() != com.mathbridge.be_project.common.UserRole.TUTOR) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(createErrorResponse("Chỉ tài khoản giảng viên mới được lưu hồ sơ giảng viên"));
+            }
             
             Tutor tutor = tutorService.createOrUpdateTutor(currentUser, request);
             return ResponseEntity.ok(tutor);
