@@ -8,6 +8,7 @@ import com.mathbridge.be_project.tutor.TutorRepository;
 import com.mathbridge.be_project.user.*;
 import com.mathbridge.be_project.common.UserStatus;
 import com.mathbridge.be_project.common.UserRole;
+import com.mathbridge.be_project.common.ApprovalStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -86,6 +87,10 @@ public class AuthService {
             tutor.setEmployeeId(employeeId);
             tutor.setSubjects(request.getSubjects());
             tutor.setAvailableTime(request.getAvailableTime());
+            // Auto-approve tutor if they have subjects (they've completed registration with required info)
+            if (request.getSubjects() != null && !request.getSubjects().trim().isEmpty()) {
+                tutor.setApprovalStatus(ApprovalStatus.APPROVED);
+            }
             tutorRepository.save(tutor);
         }
         

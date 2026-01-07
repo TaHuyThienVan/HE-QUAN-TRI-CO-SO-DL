@@ -11,8 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -182,21 +184,31 @@ public class TutorService {
     }
     
     // Get approved tutors filtered by subject (for course registration)
+    // Also includes PENDING tutors with subjects to improve UX
     @Transactional(readOnly = true)
     public List<Tutor> getApprovedTutorsBySubject(String subject) {
-        // If no subject specified, return all approved tutors
+        // If no subject specified, return all approved tutors and pending tutors with subjects
         if (subject == null || subject.trim().isEmpty()) {
-            return getApprovedTutors();
+            List<Tutor> approved = getApprovedTutors();
+            // Also get pending tutors that have subjects
+            List<Tutor> pendingWithSubjects = tutorRepository.findByApprovalStatus(ApprovalStatus.PENDING)
+                    .stream()
+                    .filter(t -> t.getSubjects() != null && !t.getSubjects().trim().isEmpty())
+                    .collect(Collectors.toList());
+            // Combine and return (approved first)
+            List<Tutor> result = new ArrayList<>(approved);
+            result.addAll(pendingWithSubjects);
+            return result;
         }
         
         String normalizedSubject = subject.trim();
-        // Reuse searchTutors to ensure only APPROVED tutors are returned
+        // Use searchTutorsIncludingPending to get both APPROVED and PENDING tutors with subjects
         BigDecimal minRate = BigDecimal.ZERO;
         BigDecimal maxRate = new BigDecimal("999999999");
         BigDecimal minRating = BigDecimal.ZERO;
         Integer minExperience = 0;
         
-        return tutorRepository.searchTutors(
+        return tutorRepository.searchTutorsIncludingPending(
                 normalizedSubject,
                 minRate,
                 maxRate,

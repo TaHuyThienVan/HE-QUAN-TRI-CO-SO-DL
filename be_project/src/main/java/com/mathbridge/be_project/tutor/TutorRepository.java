@@ -61,4 +61,18 @@ public interface TutorRepository extends JpaRepository<Tutor, Long> {
     // Get tutors with most sessions
     @Query("SELECT t FROM Tutor t WHERE t.approvalStatus = 'APPROVED' ORDER BY t.totalSessions DESC, t.rating DESC")
     List<Tutor> findMostExperiencedTutors();
+    
+    // Search tutors including both APPROVED and PENDING (for course registration)
+    @Query("SELECT t FROM Tutor t WHERE " +
+           "(t.approvalStatus = 'APPROVED' OR (t.approvalStatus = 'PENDING' AND t.subjects IS NOT NULL AND t.subjects != '')) AND " +
+           "(LOWER(t.subjects) LIKE LOWER(CONCAT('%', :subject, '%')) OR :subject IS NULL OR :subject = '') AND " +
+           "(t.hourlyRate BETWEEN :minRate AND :maxRate) AND " +
+           "(t.rating >= :minRating) AND " +
+           "(t.experience >= :minExperience) " +
+           "ORDER BY t.approvalStatus DESC, t.rating DESC")
+    List<Tutor> searchTutorsIncludingPending(@Param("subject") String subject,
+                            @Param("minRate") BigDecimal minRate,
+                            @Param("maxRate") BigDecimal maxRate,
+                            @Param("minRating") BigDecimal minRating,
+                            @Param("minExperience") Integer minExperience);
 }
