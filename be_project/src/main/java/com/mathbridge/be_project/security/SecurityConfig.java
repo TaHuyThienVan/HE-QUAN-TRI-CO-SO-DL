@@ -53,6 +53,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/tutors/**").authenticated()
                         // Course registration endpoints require authentication
                         .requestMatchers("/api/course-registrations/**").authenticated()
+                        // Allow course list to be fetched without authentication (used by FE)
+                        .requestMatchers("/api/courses/**").permitAll()
                         // Allow feedback endpoints without authentication
                         .requestMatchers("/api/feedback/**").permitAll()
 

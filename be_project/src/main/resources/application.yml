@@ -12,9 +12,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:sqlserver://localhost:1433;databaseName=elearning;encrypt=true;trustServerCertificate=true
-    username: mathbridge_user
-    password: Mb@12345678
+    url: jdbc:sqlserver://localhost:14330;databaseName=mathbridge;encrypt=true;trustServerCertificate=true
+    username: sa
+    password: StrongP@ssw0rd123
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
 
   # Bạn đã không dùng H2 nữa -> tắt h2 console

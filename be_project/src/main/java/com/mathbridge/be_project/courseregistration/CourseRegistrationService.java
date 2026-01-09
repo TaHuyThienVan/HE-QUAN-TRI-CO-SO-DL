@@ -3,6 +3,8 @@ package com.mathbridge.be_project.courseregistration;
 import com.mathbridge.be_project.student.Student;
 import com.mathbridge.be_project.student.StudentRepository;
 import com.mathbridge.be_project.user.User;
+import com.mathbridge.be_project.course.CourseRepository;
+import com.mathbridge.be_project.course.Course;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,7 @@ public class CourseRegistrationService {
 
     private final CourseRegistrationRepository courseRegistrationRepository;
     private final StudentRepository studentRepository;
+    private final CourseRepository courseRepository;
 
     /**
      * Đăng ký môn học cho student
@@ -59,20 +62,36 @@ public class CourseRegistrationService {
         String courseName = request.getCourseName().trim();
         System.out.println("Course name: " + courseName);
 
-        // Kiểm tra xem đã đăng ký môn này chưa (chỉ kiểm tra các môn có status REGISTERED)
+        // Check course capacity; if course not configured, create it with default capacity
+        Course course = courseRepository.findByName(courseName).orElse(null);
+        if (course == null) {
+            System.out.println("Course not found, creating default course entry: " + courseName);
+            course = new Course();
+            course.setName(courseName);
+            course.setCapacity(50); // default capacity
+            course = courseRepository.save(course);
+        }
+
+        long currentRegistered = courseRegistrationRepository.countByCourseNameAndStatus(courseName, "REGISTERED");
+        System.out.println("Current registered for " + courseName + ": " + currentRegistered + ", capacity=" + course.getCapacity());
+        if (course.getCapacity() != null && currentRegistered >= course.getCapacity()) {
+            // Save a FAILED registration record for auditing and to prevent re-attempts
+            CourseRegistration failed = new CourseRegistration();
+            failed.setStudent(student);
+            failed.setCourseName(courseName);
+            failed.setSemester(request.getSemester() != null ? request.getSemester().trim() : getCurrentSemester());
+            failed.setStatus("FAILED");
+            failed.setRegisteredAt(java.time.LocalDateTime.now());
+            courseRegistrationRepository.save(failed);
+            throw new IllegalArgumentException("Đã đủ chỗ cho môn học này. Vui lòng chọn môn khác.");
+        }
+
+        // Kiểm tra xem đã từng đăng ký môn này chưa (không cho đăng ký lại dù trước đó đã hủy)
         Optional<CourseRegistration> existingRegistration = courseRegistrationRepository.findByStudentAndCourseName(student, courseName);
         System.out.println("Checking existing registration...");
-        
         if (existingRegistration.isPresent()) {
-            CourseRegistration existing = existingRegistration.get();
-            System.out.println("Found existing registration with status: " + existing.getStatus());
-            // Chỉ báo lỗi nếu môn học đã được đăng ký với status REGISTERED
-            if ("REGISTERED".equals(existing.getStatus())) {
-                System.out.println("ERROR: Course already registered with REGISTERED status");
-                throw new IllegalArgumentException("Bạn đã đăng ký môn học này rồi.");
-            }
-            // Nếu môn học đã bị hủy (CANCELLED), cho phép đăng ký lại
-            System.out.println("Existing registration has status: " + existing.getStatus() + ", allowing re-registration");
+            System.out.println("Found existing registration (any status). Denying re-registration.");
+            throw new IllegalArgumentException("Bạn đã đăng ký môn học này rồi (không thể đăng ký lại). Nếu muốn thay đổi, hãy xóa đăng ký.");
         }
 
         // Tạo đăng ký mới
@@ -127,8 +146,8 @@ public class CourseRegistrationService {
             throw new IllegalArgumentException("Bạn không có quyền hủy đăng ký này");
         }
 
-        registration.setStatus("CANCELLED");
-        courseRegistrationRepository.save(registration);
+        // Delete the registration record when student cancels
+        courseRegistrationRepository.delete(registration);
     }
 
     /**

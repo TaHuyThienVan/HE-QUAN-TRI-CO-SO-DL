@@ -25,7 +25,7 @@ public class CourseRegistration {
     private String semester;
 
     @Column(name = "status", length = 20)
-    private String status = "REGISTERED"; // REGISTERED, COMPLETED, CANCELLED
+    private String status = "REGISTERED"; // REGISTERED, FAILED
 
     @Column(name = "registered_at")
     private LocalDateTime registeredAt;

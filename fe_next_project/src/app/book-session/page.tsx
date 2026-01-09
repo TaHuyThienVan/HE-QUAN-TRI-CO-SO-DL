@@ -5,20 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiCall } from "@/lib/api";
 
-// Danh sách các môn học đại cương đại học
-const SUBJECTS = [
-    "Triết học Mác-Lênin",
-    "Kinh tế chính trị",
-    "Lịch sử Đảng",
-    "Pháp luật đại cương",
-    "Tâm lý học",
-    "Toán cao cấp (Giải tích)",
-    "Toán cao cấp (Xác suất thống kê)",
-    "Tin học đại cương",
-    "Giáo dục Quốc phòng - An ninh",
-    "Giáo dục thể chất",
-    "Ngoại ngữ cơ bản"
-];
+type CourseDTO = {
+    id: number;
+    name: string;
+    capacity: number;
+    registeredCount: number;
+};
 
 export default function BookSessionPage() {
     const router = useRouter();
@@ -27,6 +19,7 @@ export default function BookSessionPage() {
     const [registeredCourses, setRegisteredCourses] = useState<any[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
     const [registeringCourse, setRegisteringCourse] = useState<string | null>(null);
+    const [courses, setCourses] = useState<CourseDTO[]>([]);
 
     // Kiểm tra quyền truy cập - chỉ cho phép học sinh
     useEffect(() => {
@@ -49,6 +42,7 @@ export default function BookSessionPage() {
     // Load danh sách môn học đã đăng ký
     useEffect(() => {
         loadRegisteredCourses();
+        loadAvailableCourses();
     }, []);
 
     // Load danh sách môn học đã đăng ký
@@ -76,6 +70,15 @@ export default function BookSessionPage() {
             setRegisteredCourses([]);
         } finally {
             setLoadingCourses(false);
+        }
+    };
+
+    const loadAvailableCourses = async () => {
+        try {
+            const data = await apiCall<CourseDTO[]>('/api/courses');
+            if (Array.isArray(data)) setCourses(data);
+        } catch (err) {
+            console.error('Error loading courses', err);
         }
     };
 
@@ -116,6 +119,7 @@ export default function BookSessionPage() {
                 // Đợi một chút để đảm bảo database đã cập nhật
                 setTimeout(async () => {
                     await loadRegisteredCourses();
+                    await loadAvailableCourses();
                 }, 500);
                 
                 // Clear success message after 10 seconds
@@ -198,6 +202,10 @@ export default function BookSessionPage() {
         );
     };
 
+    const isCourseFull = (course: CourseDTO) => {
+        return typeof course.registeredCount === 'number' && typeof course.capacity === 'number' && course.registeredCount >= course.capacity;
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-orange-900 via-[#5e1f12] to-[#3b0c12] text-orange-50">
             {/* Header */}
@@ -277,13 +285,14 @@ export default function BookSessionPage() {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {SUBJECTS.map((subject) => {
-                                const isRegistered = isCourseRegistered(subject);
-                                const isRegistering = registeringCourse === subject;
+                            {courses.map((c) => {
+                                const isRegistered = isCourseRegistered(c.name);
+                                const isRegistering = registeringCourse === c.name;
+                                const full = isCourseFull(c);
 
                                 return (
                                     <div
-                                        key={subject}
+                                        key={c.id}
                                         className={`bg-gradient-to-br rounded-xl p-5 border-2 transition-all ${
                                             isRegistered
                                                 ? "from-green-900/50 to-green-800/50 border-green-500/70"
@@ -292,7 +301,7 @@ export default function BookSessionPage() {
                                     >
                                         <div className="flex items-start justify-between mb-3">
                                             <h3 className="font-bold text-orange-100 text-lg flex-1 pr-2">
-                                                {subject}
+                                                {c.name}
                                             </h3>
                                             {isRegistered && (
                                                 <span className="text-xs px-3 py-1 bg-green-900/70 text-green-200 rounded-full whitespace-nowrap">
@@ -300,6 +309,8 @@ export default function BookSessionPage() {
                                                 </span>
                                             )}
                                         </div>
+
+                                        <p className="text-sm text-orange-200/70">Đã đăng ký: {c.registeredCount}/{c.capacity}</p>
 
                                         {isRegistered ? (
                                             <div className="mt-4">
@@ -309,18 +320,25 @@ export default function BookSessionPage() {
                                             </div>
                                         ) : (
                                             <button
-                                                onClick={() => handleRegisterCourse(subject)}
-                                                disabled={isRegistering}
+                                                onClick={() => handleRegisterCourse(c.name)}
+                                                disabled={isRegistering || full}
                                                 className={`w-full mt-4 px-4 py-3 rounded-lg font-semibold transition-all ${
                                                     isRegistering
                                                         ? "bg-orange-700/50 text-orange-300 cursor-wait"
-                                                        : "bg-orange-600 hover:bg-orange-700 text-white shadow-lg hover:shadow-xl"
+                                                        : full
+                                                            ? "bg-gray-600 text-gray-200 cursor-not-allowed"
+                                                            : "bg-orange-600 hover:bg-orange-700 text-white shadow-lg hover:shadow-xl"
                                                 }`}
                                             >
                                                 {isRegistering ? (
                                                     <span className="flex items-center justify-center gap-2">
                                                         <span className="animate-spin">⏳</span>
                                                         Đang đăng ký...
+                                                    </span>
+                                                ) : full ? (
+                                                    <span className="flex items-center justify-center gap-2">
+                                                        <span>🔒</span>
+                                                        Đã đủ chỗ
                                                     </span>
                                                 ) : (
                                                     <span className="flex items-center justify-center gap-2">

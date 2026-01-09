@@ -30,5 +30,8 @@ public interface CourseRegistrationRepository extends JpaRepository<CourseRegist
     
     // Check if student has already registered for a course with specific status
     boolean existsByStudentAndCourseNameAndStatus(Student student, String courseName, String status);
+
+    // Count registrations for a given course name and status (e.g., REGISTERED)
+    long countByCourseNameAndStatus(String courseName, String status);
 }
 

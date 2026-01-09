@@ -95,6 +95,27 @@ export default function StudentDashboard() {
     const [registeredCourses, setRegisteredCourses] = useState<any[]>([]);
     const [loadingCourses, setLoadingCourses] = useState(true);
 
+    const cancelRegistration = async (registrationId: number) => {
+        if (!confirm('Bạn có chắc muốn hủy đăng ký môn học này?')) return;
+        try {
+            await apiCall(`/api/course-registrations/${registrationId}/cancel`, { method: 'PUT' });
+            // Refresh
+            const courses = await apiCall<any[]>('/api/course-registrations/me');
+            if (courses && Array.isArray(courses)) {
+                const activeCourses = courses.filter(c => c.status === 'REGISTERED')
+                    .sort((a,b) => {
+                        const ta = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
+                        const tb = b.registeredAt ? new Date(b.registeredAt).getTime() : 0;
+                        return tb - ta;
+                    });
+                setRegisteredCourses(activeCourses);
+            }
+        } catch (err) {
+            console.error('Error cancelling registration', err);
+            alert('Không thể hủy đăng ký. Vui lòng thử lại.');
+        }
+    };
+
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
     const [month, setMonth] = useState(today.getMonth());
@@ -960,6 +981,14 @@ export default function StudentDashboard() {
                                             Đăng ký: {new Date(course.registeredAt).toLocaleDateString("vi-VN")}
                                         </p>
                                     )}
+                                    <div className="mt-3 flex items-center gap-3">
+                                        <button
+                                            onClick={() => cancelRegistration(course.id)}
+                                            className="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-sm font-semibold"
+                                        >
+                                            Hủy đăng ký
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
