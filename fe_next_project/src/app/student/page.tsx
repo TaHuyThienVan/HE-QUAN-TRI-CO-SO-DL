@@ -25,8 +25,6 @@ const DISTRICTS_HCM = [
     "Tân Bình",
 ];
 
-const GRADE_LEVELS = ["Lớp 10", "Lớp 11", "Lớp 12"];
-
 const PAYMENT_QR_KEY = "mathbridgePaymentQr";
 const PAYMENT_QR_UPDATED_AT_KEY = "mathbridgePaymentQrUpdatedAt";
 const PAYMENT_STATUS_KEY = "mathbridgePaymentStatus";
@@ -41,7 +39,6 @@ type Student = {
     district: string;
     email: string;
     phone: string;
-    gradeLevel: string;
 };
 
 const EMPTY_STUDENT: Student = {
@@ -51,7 +48,6 @@ const EMPTY_STUDENT: Student = {
     district: "",
     email: "",
     phone: "",
-    gradeLevel: "",
 };
 
 function cls(...s: (string | false | null | undefined)[]) {
@@ -88,11 +84,7 @@ export default function StudentDashboard() {
     const [reminders] = useState<number>(0);
     const [loading, setLoading] = useState(true);
 
-    const [classes] = useState<{ name: string }[]>([
-        { name: "Đại số 10: Hàm số bậc nhất" },
-        { name: "Hình học 10: Vector & Tọa độ" },
-        { name: "Ôn luyện: Bất đẳng thức" },
-    ]);
+    // Removed high school classes - this is for university students only
     const [paymentQr, setPaymentQr] = useState<string | null>(null);
     const [paymentUpdatedAt, setPaymentUpdatedAt] = useState<string | null>(null);
     const [paymentStatus, setPaymentStatus] = useState<"idle" | "success">("idle");
@@ -100,6 +92,8 @@ export default function StudentDashboard() {
     const [paymentMessage, setPaymentMessage] = useState<string | null>(null);
     const [paymentAmount, setPaymentAmount] = useState<string | null>(null);
     const [paymentAmountUpdatedAt, setPaymentAmountUpdatedAt] = useState<string | null>(null);
+    const [registeredCourses, setRegisteredCourses] = useState<any[]>([]);
+    const [loadingCourses, setLoadingCourses] = useState(true);
 
     const today = new Date();
     const [year, setYear] = useState(today.getFullYear());
@@ -207,7 +201,6 @@ export default function StudentDashboard() {
                 
                 if (result) {
                     // Map backend data to frontend format
-                    // Backend uses 'grade' but frontend uses 'gradeLevel'
                     const backendStudent = result as any;
                     
                     // Load avatar from backend
@@ -217,28 +210,9 @@ export default function StudentDashboard() {
                     
                     // Debug: Log values to see what we're getting
                     console.log('Loaded student data:', {
-                        grade: backendStudent.grade,
-                        gradeLevel: backendStudent.gradeLevel,
                         district: backendStudent.district,
                         hasAvatar: !!backendStudent.avatar
                     });
-                    
-                    // Normalize grade value to match frontend options
-                    let gradeValue = backendStudent.grade || backendStudent.gradeLevel || "";
-                    // Fix encoding issues: L?p -> Lớp, L?p -> Lớp
-                    if (gradeValue) {
-                        gradeValue = gradeValue.replace(/\?p/g, 'ớp');
-                        // Try to match with valid options
-                        if (!GRADE_LEVELS.includes(gradeValue)) {
-                            // Try to find by number (10, 11, 12)
-                            const numberMatch = gradeValue.match(/\d+/);
-                            if (numberMatch) {
-                                const num = numberMatch[0];
-                                const matched = GRADE_LEVELS.find(g => g.includes(num));
-                                if (matched) gradeValue = matched;
-                            }
-                        }
-                    }
                     
                     // Normalize district value
                     let districtValue = backendStudent.district || "";
@@ -268,13 +242,10 @@ export default function StudentDashboard() {
                         district: districtValue,
                         email: backendStudent.email || "",
                         phone: backendStudent.phone || "",
-                        gradeLevel: gradeValue,
                     });
                     
                     console.log('Mapped student data:', {
-                        gradeLevel: gradeValue,
                         district: districtValue,
-                        originalGrade: backendStudent.grade,
                         originalDistrict: backendStudent.district
                     });
                     
@@ -298,7 +269,94 @@ export default function StudentDashboard() {
             }
         };
 
+        const loadRegisteredCourses = async () => {
+            try {
+                setLoadingCourses(true);
+                const courses = await apiCall<any[]>("/api/course-registrations/me");
+                if (courses && Array.isArray(courses)) {
+                    // Chỉ lấy các môn học có status REGISTERED và sắp xếp theo thời gian đăng ký
+                    const activeCourses = courses
+                        .filter(course => course.status === "REGISTERED")
+                        .sort((a, b) => {
+                            // Sắp xếp theo thời gian đăng ký (mới nhất trước)
+                            const timeA = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
+                            const timeB = b.registeredAt ? new Date(b.registeredAt).getTime() : 0;
+                            return timeB - timeA;
+                        });
+                    setRegisteredCourses(activeCourses);
+                    console.log("Loaded registered courses:", activeCourses.length);
+                } else {
+                    setRegisteredCourses([]);
+                }
+            } catch (err: any) {
+                console.error("Error loading registered courses:", err);
+                setRegisteredCourses([]);
+            } finally {
+                setLoadingCourses(false);
+            }
+        };
+
         loadStudentData();
+        loadRegisteredCourses();
+    }, []);
+
+    // Tự động refresh danh sách môn học khi trang được focus hoặc hiển thị lại
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const handleVisibilityChange = () => {
+            if (!document.hidden) {
+                // Khi trang trở nên visible, refresh danh sách môn học
+                const loadCourses = async () => {
+                    try {
+                        const courses = await apiCall<any[]>("/api/course-registrations/me");
+                        if (courses && Array.isArray(courses)) {
+                            const activeCourses = courses
+                                .filter(course => course.status === "REGISTERED")
+                                .sort((a, b) => {
+                                    const timeA = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
+                                    const timeB = b.registeredAt ? new Date(b.registeredAt).getTime() : 0;
+                                    return timeB - timeA;
+                                });
+                            setRegisteredCourses(activeCourses);
+                        }
+                    } catch (err: any) {
+                        console.error("Error refreshing registered courses:", err);
+                    }
+                };
+                loadCourses();
+            }
+        };
+
+        const handleFocus = () => {
+            // Khi trang được focus, refresh danh sách môn học
+            const loadCourses = async () => {
+                try {
+                    const courses = await apiCall<any[]>("/api/course-registrations/me");
+                    if (courses && Array.isArray(courses)) {
+                        const activeCourses = courses
+                            .filter(course => course.status === "REGISTERED")
+                            .sort((a, b) => {
+                                const timeA = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
+                                const timeB = b.registeredAt ? new Date(b.registeredAt).getTime() : 0;
+                                return timeB - timeA;
+                            });
+                        setRegisteredCourses(activeCourses);
+                    }
+                } catch (err: any) {
+                    console.error("Error refreshing registered courses:", err);
+                }
+            };
+            loadCourses();
+        };
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        window.addEventListener("focus", handleFocus);
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            window.removeEventListener("focus", handleFocus);
+        };
     }, []);
 
     useEffect(() => {
@@ -348,10 +406,6 @@ export default function StudentDashboard() {
             alert("Vui lòng nhập họ tên!");
             return;
         }
-        if (!student.gradeLevel) {
-            alert("Vui lòng chọn lớp học!");
-            return;
-        }
 
         // Debug: Check token before saving
         if (typeof window !== 'undefined') {
@@ -371,7 +425,6 @@ export default function StudentDashboard() {
             district: student.district || null,
             email: student.email || null,
             phone: student.phone || null,
-            gradeLevel: student.gradeLevel,
             avatar: photo || null, // Include avatar (base64) in payload
             note: null,
         };
@@ -397,20 +450,7 @@ export default function StudentDashboard() {
                     setPhoto(backendStudent.avatar);
                 }
                 
-                // Normalize grade and district values (same as in initial load)
-                let gradeValue = backendStudent.grade || backendStudent.gradeLevel || "";
-                if (gradeValue) {
-                    gradeValue = gradeValue.replace(/\?p/g, 'ớp');
-                    if (!GRADE_LEVELS.includes(gradeValue)) {
-                        const numberMatch = gradeValue.match(/\d+/);
-                        if (numberMatch) {
-                            const num = numberMatch[0];
-                            const matched = GRADE_LEVELS.find(g => g.includes(num));
-                            if (matched) gradeValue = matched;
-                        }
-                    }
-                }
-                
+                // Normalize district value
                 let districtValue = backendStudent.district || "";
                 if (districtValue) {
                     districtValue = districtValue.replace(/Qu\?n/g, 'Quận');
@@ -433,7 +473,6 @@ export default function StudentDashboard() {
                     district: districtValue,
                     email: backendStudent.email || "",
                     phone: backendStudent.phone || "",
-                    gradeLevel: gradeValue,
                 });
             }
         } catch (err: unknown) {
@@ -618,17 +657,6 @@ export default function StudentDashboard() {
                                         options={[
                                             { value: "", label: "-- Chọn quận --" },
                                             ...DISTRICTS_HCM.map((d) => ({ value: d, label: d })),
-                                        ]}
-                                    />
-
-                                    <SelectField
-                                        label="Lớp (10–12)"
-                                        edit={editMode}
-                                        value={student.gradeLevel}
-                                        onChange={(v: string) => handleChange("gradeLevel", v)}
-                                        options={[
-                                            { value: "", label: "-- Chọn lớp --" },
-                                            ...GRADE_LEVELS.map((g) => ({ value: g, label: g })),
                                         ]}
                                     />
 
@@ -878,6 +906,66 @@ export default function StudentDashboard() {
                 </section>
 
 
+                {/* Học phần đã đăng ký */}
+                <section className="bg-black/40 rounded-2xl shadow p-5">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-extrabold text-orange-400 flex items-center gap-2">
+                            <span className="text-2xl">📚</span>
+                            Học phần đã đăng ký kỳ này
+                        </h2>
+                        <Link
+                            href="/book-session"
+                            className="text-sm px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg transition-colors"
+                        >
+                            + Đăng ký môn học mới
+                        </Link>
+                    </div>
+                    
+                    {loadingCourses ? (
+                        <div className="text-center py-8">
+                            <p className="text-orange-300">Đang tải danh sách môn học...</p>
+                        </div>
+                    ) : registeredCourses.length === 0 ? (
+                        <div className="text-center py-8 bg-black/30 rounded-lg border border-orange-700/50">
+                            <p className="text-orange-200/80 mb-2">Bạn chưa đăng ký môn học nào.</p>
+                            <Link
+                                href="/book-session"
+                                className="inline-block mt-3 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg transition-colors"
+                            >
+                                Đăng ký môn học ngay
+                            </Link>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {registeredCourses.map((course) => (
+                                <div
+                                    key={course.id}
+                                    className="bg-gradient-to-br from-orange-900/50 to-orange-800/50 rounded-xl p-4 border border-orange-700/50 hover:border-orange-500/70 transition-colors"
+                                >
+                                    <div className="flex items-start justify-between mb-2">
+                                        <h3 className="font-bold text-orange-100 text-base flex-1">
+                                            {course.courseName}
+                                        </h3>
+                                        <span className="text-xs px-2 py-1 bg-green-900/50 text-green-200 rounded-full">
+                                            ✓ Đã đăng ký
+                                        </span>
+                                    </div>
+                                    {course.semester && (
+                                        <p className="text-xs text-orange-200/70 mt-1">
+                                            {course.semester}
+                                        </p>
+                                    )}
+                                    {course.registeredAt && (
+                                        <p className="text-xs text-orange-300/60 mt-2">
+                                            Đăng ký: {new Date(course.registeredAt).toLocaleDateString("vi-VN")}
+                                        </p>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </section>
+
                 {/* Tiến độ & Feedback gần đây */}
                 <section className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Tiến độ học tập */}
@@ -940,20 +1028,9 @@ export default function StudentDashboard() {
                             Feedback gần đây
                         </h3>
                         <p className="text-sm text-orange-200/80">
-                            Hiện chưa có feedback nào. Khi giáo viên gửi nhận xét, nội dung sẽ
-                            xuất hiện tại đây để học sinh và phụ huynh tiện theo dõi.
+                            Hiện chưa có feedback nào. Khi giảng viên gửi nhận xét, nội dung sẽ
+                            xuất hiện tại đây để sinh viên tiện theo dõi.
                         </p>
-
-                        {classes.length > 0 && (
-                            <ul className="mt-3 text-xs text-orange-200/90 space-y-1">
-                                <li className="font-semibold text-orange-300">
-                                    Lớp hiện tại:
-                                </li>
-                                {classes.map((c, idx) => (
-                                    <li key={idx}>• {c.name}</li>
-                                ))}
-                            </ul>
-                        )}
                     </div>
                 </section>
                 </>

@@ -63,7 +63,7 @@ export default function DemoZoomPage() {
             <div className="relative overflow-hidden rounded-3xl border border-orange-600/60 bg-gradient-to-br from-orange-900/70 via-slate-950 to-slate-900 shadow-lg">
               <div className="flex items-center justify-between px-4 py-2 text-xs text-orange-100/90">
                 <span className="font-semibold">
-                  Phòng học: Hàm số bậc nhất – Lớp 10A1
+                  Phòng học: Toán cao cấp (Giải tích) – Nhóm 1
                 </span>
                 <span className="rounded-full bg-black/40 px-3 py-0.5 text-[11px]">
                   Thầy đang giảng bài
@@ -79,7 +79,7 @@ export default function DemoZoomPage() {
                       {teacher.name}
                     </p>
                     <p className="text-xs text-orange-200/70">
-                      Giáo viên Toán – Phổ thông / IB / A-level
+                      Giảng viên Toán – Đại học
                     </p>
                   </div>
                   <div className="mt-2 rounded-full bg-black/40 px-3 py-1 text-[11px] text-orange-100/90">
@@ -113,7 +113,7 @@ export default function DemoZoomPage() {
                       {s.name}
                     </span>
                     <span className="text-[11px] text-slate-400">
-                      HS lớp 10 • Toán nâng cao
+                      SV năm 1 • Toán cao cấp
                     </span>
                   </div>
                 ))}

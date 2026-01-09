@@ -51,6 +51,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/students/**").authenticated()
                         // Tutor endpoints require authentication
                         .requestMatchers("/api/tutors/**").authenticated()
+                        // Course registration endpoints require authentication
+                        .requestMatchers("/api/course-registrations/**").authenticated()
                         // Allow feedback endpoints without authentication
                         .requestMatchers("/api/feedback/**").permitAll()
 

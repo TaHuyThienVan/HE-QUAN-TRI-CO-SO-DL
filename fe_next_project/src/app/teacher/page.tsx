@@ -637,18 +637,19 @@ export default function TeacherProfile() {
     return normalized;
   };
 
-  // Các khối / lớp giảng dạy cho môn Toán
+  // Các môn học đại học giảng dạy (chỉ dành cho sinh viên)
   const teachGradeOptions = [
-    "Lớp 6",
-    "Lớp 7",
-    "Lớp 8",
-    "Lớp 9",
-    "Lớp 10",
-    "Lớp 11",
-    "Lớp 12",
-    "Lớp 6–9 (THCS)",
-    "Lớp 10–12 (THPT)",
-    "Lớp 6–12 (Toàn bộ)",
+    "Triết học Mác-Lênin",
+    "Kinh tế chính trị",
+    "Lịch sử Đảng",
+    "Pháp luật đại cương",
+    "Tâm lý học",
+    "Toán cao cấp (Giải tích)",
+    "Toán cao cấp (Xác suất thống kê)",
+    "Tin học đại cương",
+    "Giáo dục Quốc phòng - An ninh",
+    "Giáo dục thể chất",
+    "Ngoại ngữ cơ bản",
   ];
 
   const genders = ["Nam", "Nữ", "Khác"];
@@ -943,7 +944,7 @@ export default function TeacherProfile() {
                 {/* Dạy khối lớp Toán */}
                 <div>
                   <label className="block mb-1 text-sm font-semibold text-orange-100">
-                    Dạy khối lớp (Toán)
+                    Môn học giảng dạy (Đại học)
                   </label>
                   <div className="relative">
                     <select
@@ -955,7 +956,7 @@ export default function TeacherProfile() {
                       required
                     >
                       <option value="">
-                        -- Chọn khối / lớp giảng dạy (6–12) --
+                        -- Chọn môn học giảng dạy --
                       </option>
                       {teachGradeOptions.map((g) => (
                         <option key={g} value={g}>

@@ -191,75 +191,57 @@ export async function apiCall<T>(
       headers,
     });
 
+    // Read response once
+    const contentType = response.headers.get('content-type');
+    const contentLength = response.headers.get('content-length');
+    const text = await response.text();
+    
     if (!response.ok) {
       // Try to parse error response, but handle empty responses
-      let error: any = { message: 'Request failed' };
-      const contentType = response.headers.get('content-type');
+      let error: any = { message: 'Đăng ký thất bại! Vui lòng thử lại.' };
       
-      try {
-        const text = await response.text();
-        
-        // Only log non-403 errors to avoid console spam
-        if (response.status !== 403) {
-          console.error(`API Error [${response.status}] for ${endpoint}:`, text);
-        }
-        
-        if (text && text.trim()) {
-          if (contentType && contentType.includes('application/json')) {
-            try {
-              error = JSON.parse(text);
-            } catch (parseError) {
-              // If JSON parse fails, use text as message
-              error = { message: text };
-            }
-          } else {
+      console.error(`API Error [${response.status}] for ${endpoint}:`, text);
+      
+      if (text && text.trim()) {
+        if (contentType && contentType.includes('application/json')) {
+          try {
+            error = JSON.parse(text);
+          } catch (parseError) {
+            // If JSON parse fails, use text as message
             error = { message: text };
           }
+        } else {
+          error = { message: text };
         }
-      } catch (e) {
-        // Only log if not 403
-        if (response.status !== 403) {
-          console.error('Error reading error response:', e);
-        }
-        // If parsing fails, use default error
       }
       
-      const errorMessage = error.message || error.error || `Request failed with status ${response.status}`;
-      
-      // Only log non-403 errors
-      if (response.status !== 403) {
-        console.error(`API call failed: ${endpoint} - ${errorMessage}`);
-      }
+      // Ưu tiên lấy message từ error hoặc message field
+      const errorMessage = error.message || error.error || `Đăng ký thất bại! (HTTP ${response.status})`;
+      console.error(`API call failed: ${endpoint} - ${errorMessage}`);
       
       throw new Error(errorMessage);
     }
 
-    // Check if response has content
-    const contentType = response.headers.get('content-type');
-    const contentLength = response.headers.get('content-length');
-    
     // Handle empty responses (204 No Content, or empty body)
-    if (response.status === 204 || contentLength === '0') {
+    if (response.status === 204 || contentLength === '0' || !text || text.trim() === '') {
       return null as T;
     }
 
     // Check if response is JSON
     if (contentType && contentType.includes('application/json')) {
-      const text = await response.text();
       // Handle empty JSON response
-      if (!text || text.trim() === '' || text.trim() === 'null') {
+      if (text.trim() === '' || text.trim() === 'null') {
         return null as T;
       }
       try {
         return JSON.parse(text) as T;
       } catch (e) {
         console.error('Failed to parse JSON:', text);
-        throw new Error('Invalid JSON response from server');
+        throw new Error('Phản hồi từ server không hợp lệ');
       }
     }
 
-    // If not JSON, return null or text
-    const text = await response.text();
+    // If not JSON, return text or null
     return (text || null) as T;
   } catch (error: unknown) {
     // Handle network errors (backend not running, CORS, etc.)

@@ -124,11 +124,10 @@ export default function LoginPage() {
 
           <h2 className="text-2xl font-bold text-orange-700 mt-6 mb-4">🎓 Chương trình học</h2>
           <p className="text-gray-700 text-sm leading-relaxed">
-            Lộ trình Toán theo chương trình phổ thông mới: từ làm quen số học (lớp 1–2), 
-            tư duy logic &amp; hình học cơ bản (lớp 3–5), đại số &amp; hình học (lớp 6–9), 
-            đến hàm số – xác suất – hình học tọa độ (lớp 10–12). 
-            Mỗi bài có video ngắn, ví dụ mẫu, bài tập tự luyện, và đề kiểm tra định kỳ. 
-            Phụ huynh có thể theo dõi tiến độ ngay sau khi đăng nhập.
+            Hệ thống quản lý học tập dành cho sinh viên đại học. 
+            Đăng ký các môn học đại cương, theo dõi lịch học, và quản lý tiến độ học tập. 
+            Mỗi môn học có tài liệu, bài tập, và đánh giá định kỳ. 
+            Sinh viên có thể theo dõi tiến độ và kết quả học tập ngay sau khi đăng nhập.
           </p>
 
           <h2 className="text-2xl font-bold text-orange-700 mt-6 mb-4">💰 Học phí &amp; Chính sách ưu đãi</h2>

@@ -1,6 +1,6 @@
 # ============================================
 # MathBridge - Application Configuration
-# Mặc định sử dụng H2 Database (không cần cài đặt)
+# Sử dụng SQL Server local (SSMS) - TCP 1433
 # ============================================
 server:
   port: 8081
@@ -12,37 +12,40 @@ server:
 
 spring:
   datasource:
-    # H2 Database - Embedded (không cần cài đặt)
-    url: jdbc:h2:mem:mathbridge;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
-    username: sa
-    password: 
-    driver-class-name: org.h2.Driver
+    url: jdbc:sqlserver://localhost:1433;databaseName=elearning;encrypt=true;trustServerCertificate=true
+    username: mathbridge_user
+    password: Mb@12345678
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  # Bạn đã không dùng H2 nữa -> tắt h2 console
   h2:
     console:
-      enabled: true
-      path: /h2-console
+      enabled: false
+
   http:
     encoding:
       charset: UTF-8
       enabled: true
       force: true
+
   jpa:
     hibernate:
       ddl-auto: update
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.SQLServerDialect
         format_sql: true
         show_sql: false
     open-in-view: false
+
   flyway:
     enabled: false
 
 # JWT Configuration
 jwt:
   secret: MathBridge_Secret_Key_2024_Change_In_Production_256bit_Minimum_Required_Length_For_HS256_Algorithm
-  expiration-ms: 86400000  # 24 hours
+  expiration-ms: 86400000 # 24 hours
 
-# Cho phép FE Next.js gọi API
+# Cho phép FE Next.js gọi API (đã sửa lỗi dấu chấm cuối)
 cors:
   origins: http://localhost:3000

@@ -1,43 +1,32 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiCall } from "@/lib/api";
 
-type Tutor = {
-    id: number;
-    fullName: string | null;
-    email: string;
-    hourlyRate: number;
-    rating: number;
-    subjects: string | null;
-    experience: number | null;
-};
-
-type Slot = {
-    time: string;
-    date: string;
-    available: boolean;
-    status: string;
-    scheduledDate: string;
-};
+// Danh sách các môn học đại cương đại học
+const SUBJECTS = [
+    "Triết học Mác-Lênin",
+    "Kinh tế chính trị",
+    "Lịch sử Đảng",
+    "Pháp luật đại cương",
+    "Tâm lý học",
+    "Toán cao cấp (Giải tích)",
+    "Toán cao cấp (Xác suất thống kê)",
+    "Tin học đại cương",
+    "Giáo dục Quốc phòng - An ninh",
+    "Giáo dục thể chất",
+    "Ngoại ngữ cơ bản"
+];
 
 export default function BookSessionPage() {
     const router = useRouter();
-    const [tutors, setTutors] = useState<Tutor[]>([]);
-    const [selectedTutor, setSelectedTutor] = useState<number | null>(null);
-    const [selectedDate, setSelectedDate] = useState<string>("");
-    const [slots, setSlots] = useState<Slot[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [loadingSlots, setLoadingSlots] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
-    const [bookingSlot, setBookingSlot] = useState<string | null>(null);
-    const [subject, setSubject] = useState<string>("Toán học");
-    const [method, setMethod] = useState<"online" | "offline">("online");
-    const [note, setNote] = useState<string>("");
-    const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+    const [registeredCourses, setRegisteredCourses] = useState<any[]>([]);
+    const [loadingCourses, setLoadingCourses] = useState(true);
+    const [registeringCourse, setRegisteringCourse] = useState<string | null>(null);
 
     // Kiểm tra quyền truy cập - chỉ cho phép học sinh
     useEffect(() => {
@@ -55,186 +44,167 @@ export default function BookSessionPage() {
             router.replace("/student");
             return;
         }
-
-        // Lần đầu: load danh sách giảng viên theo môn mặc định
-        loadTutors("Toán học");
     }, [router]);
 
-    // Set default date to today
+    // Load danh sách môn học đã đăng ký
     useEffect(() => {
-        const today = new Date().toISOString().split('T')[0];
-        setSelectedDate(today);
+        loadRegisteredCourses();
     }, []);
 
-    // Load tutors (có thể lọc theo môn học)
-    const loadTutors = async (filterSubject?: string) => {
+    // Load danh sách môn học đã đăng ký
+    const loadRegisteredCourses = async () => {
         try {
-            setLoading(true);
-            setError(null);
-            const query = filterSubject && filterSubject.trim().length > 0
-                ? `/api/sessions/tutors?subject=${encodeURIComponent(filterSubject.trim())}`
-                : "/api/sessions/tutors";
-            const tutorsList = await apiCall<Tutor[]>(query);
-            if (tutorsList && Array.isArray(tutorsList)) {
-                setTutors(tutorsList);
-                if (tutorsList.length > 0) {
-                    const stillExists = selectedTutor && tutorsList.some(t => t.id === selectedTutor);
-                    setSelectedTutor(stillExists ? selectedTutor : tutorsList[0].id);
-                } else {
-                    setSelectedTutor(null);
-                }
+            setLoadingCourses(true);
+            const courses = await apiCall<any[]>("/api/course-registrations/me");
+            if (courses && Array.isArray(courses)) {
+                // Chỉ lấy các môn học có status REGISTERED và sắp xếp theo thời gian đăng ký mới nhất
+                const activeCourses = courses
+                    .filter(course => course.status === "REGISTERED")
+                    .sort((a, b) => {
+                        // Sắp xếp theo thời gian đăng ký (mới nhất trước)
+                        const timeA = a.registeredAt ? new Date(a.registeredAt).getTime() : 0;
+                        const timeB = b.registeredAt ? new Date(b.registeredAt).getTime() : 0;
+                        return timeB - timeA;
+                    });
+                setRegisteredCourses(activeCourses);
+                console.log("Loaded registered courses:", activeCourses.length);
             } else {
-                setTutors([]);
-                setSelectedTutor(null);
+                setRegisteredCourses([]);
             }
         } catch (err: any) {
-            console.error("Error loading tutors:", err);
-            setError("Không thể tải danh sách giảng viên. Vui lòng thử lại.");
-            setTutors([]);
+            console.error("Error loading registered courses:", err);
+            setRegisteredCourses([]);
         } finally {
-            setLoading(false);
+            setLoadingCourses(false);
         }
     };
 
-    // Reload danh sách giảng viên khi thay đổi môn học
-    useEffect(() => {
-        loadTutors(subject);
-    }, [subject]);
+    // Đăng ký môn học
+    const handleRegisterCourse = async (courseName: string) => {
+        // Kiểm tra xem đã đăng ký môn này chưa
+        const alreadyRegistered = registeredCourses.some(
+            course => course.courseName === courseName && course.status === "REGISTERED"
+        );
 
-    // Load available slots
-    const loadSlots = useCallback(async (tutorId: number, date: string) => {
-        if (!tutorId || !date) return;
-        
-        try {
-            setLoadingSlots(true);
-            setError(null);
-            const slotsData = await apiCall<Slot[]>(
-                `/api/sessions/available-slots?tutorId=${tutorId}&date=${date}`
-            );
-            if (slotsData && Array.isArray(slotsData)) {
-                setSlots(slotsData);
-            } else {
-                setSlots([]);
-            }
-        } catch (err: any) {
-            console.error("Error loading slots:", err);
-            setError("Không thể tải danh sách slot. Vui lòng thử lại.");
-            setSlots([]);
-        } finally {
-            setLoadingSlots(false);
-        }
-    }, []);
-
-    // Load slots when tutor or date changes
-    useEffect(() => {
-        if (selectedTutor && selectedDate) {
-            loadSlots(selectedTutor, selectedDate);
-        }
-    }, [selectedTutor, selectedDate, loadSlots]);
-
-    // Real-time polling to update slot status
-    useEffect(() => {
-        if (selectedTutor && selectedDate && !pollingInterval) {
-            const interval = setInterval(() => {
-                if (selectedTutor && selectedDate) {
-                    loadSlots(selectedTutor, selectedDate);
-                }
-            }, 3000); // Poll every 3 seconds
-            setPollingInterval(interval);
-            
-            return () => {
-                if (interval) {
-                    clearInterval(interval);
-                }
-            };
-        }
-    }, [selectedTutor, selectedDate, loadSlots, pollingInterval]);
-
-    // Book a slot
-    const handleBookSlot = async (slot: Slot) => {
-        if (!slot.available) {
-            alert("Slot này không còn trống!");
+        if (alreadyRegistered) {
+            setError("Bạn đã đăng ký môn học này rồi!");
+            setTimeout(() => setError(null), 5000);
             return;
         }
 
-        if (!selectedTutor) {
-            alert("Vui lòng chọn giảng viên!");
-            return;
-        }
-
-        setBookingSlot(slot.scheduledDate);
+        setRegisteringCourse(courseName);
         setError(null);
         setSuccess(null);
 
         try {
-            const [datePart, timePart] = slot.scheduledDate.split('T');
-            const time = timePart.substring(0, 5); // HH:mm format
-
             const requestData = {
-                tutorId: selectedTutor,
-                date: datePart,
-                time: time,
-                method: method,
-                subject: subject,
-                note: note || null,
+                courseName: courseName,
+                semester: null
             };
 
-            const response = await apiCall<any>("/api/sessions/book", {
+            const response = await apiCall<any>("/api/course-registrations", {
                 method: "POST",
                 body: JSON.stringify(requestData),
             });
 
-            setSuccess(`Đăng ký học phần thành công! Slot ${slot.time} ngày ${new Date(selectedDate).toLocaleDateString("vi-VN")} đã được đặt.`);
-            setBookingSlot(null);
-            
-            // Reload slots immediately
-            await loadSlots(selectedTutor, selectedDate);
-            
-            // Clear form
-            setNote("");
-        } catch (err: any) {
-            console.error("Error booking slot:", err);
-            const errorMessage = err.message || "Không thể đăng ký học phần. Vui lòng thử lại.";
-            
-            if (errorMessage.includes("đã bị người khác đăng ký") || 
-                errorMessage.includes("trùng thời gian") ||
-                errorMessage.includes("CONFLICT")) {
-                setError("⚠️ Slot này đã bị người khác đăng ký! Đang cập nhật danh sách...");
-                // Reload slots immediately
-                setTimeout(() => {
-                    loadSlots(selectedTutor!, selectedDate);
+            if (response && response.id) {
+                // Hiển thị thông báo thành công bằng tiếng Việt
+                const semesterInfo = response.semester ? ` (${response.semester})` : '';
+                setSuccess(`✅ Đăng ký thành công! Môn học "${courseName}"${semesterInfo} đã được lưu vào danh sách học phần của bạn.`);
+                
+                // Reload danh sách môn học đã đăng ký ngay lập tức để hiển thị môn học mới
+                // Đợi một chút để đảm bảo database đã cập nhật
+                setTimeout(async () => {
+                    await loadRegisteredCourses();
                 }, 500);
+                
+                // Clear success message after 10 seconds
+                setTimeout(() => {
+                    setSuccess(null);
+                }, 10000);
             } else {
-                setError(errorMessage);
+                setError("❌ Đăng ký thất bại! Không nhận được phản hồi từ server. Vui lòng thử lại.");
+                setTimeout(() => setError(null), 8000);
             }
-            setBookingSlot(null);
+        } catch (err: any) {
+            console.error("Error registering course:", err);
+            
+            // Xử lý lỗi và hiển thị thông báo tiếng Việt rõ ràng
+            let errorMessage = "❌ Đăng ký thất bại! Không thể đăng ký môn học. Vui lòng thử lại.";
+            
+            // Kiểm tra các loại lỗi khác nhau
+            if (err.message) {
+                const msg = err.message.trim();
+                
+                // Lỗi xác thực
+                if (msg.includes("401") || msg.includes("Unauthorized") || msg.includes("đăng nhập") || msg.includes("hết hạn")) {
+                    errorMessage = "❌ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+                    setTimeout(() => {
+                        router.push("/login");
+                    }, 3000);
+                }
+                // Lỗi quyền truy cập
+                else if (msg.includes("403") || msg.includes("Forbidden") || msg.includes("học sinh") || msg.includes("quyền")) {
+                    errorMessage = "❌ Chỉ học sinh mới có thể đăng ký môn học.";
+                }
+                // Lỗi đã đăng ký
+                else if (msg.includes("đã đăng ký") || msg.includes("already registered") || msg.includes("rồi")) {
+                    errorMessage = `❌ Bạn đã đăng ký môn học "${courseName}" rồi!`;
+                }
+                // Lỗi kết nối
+                else if (msg.includes("Failed to fetch") || msg.includes("kết nối") || msg.includes("network") || msg.includes("ECONNREFUSED")) {
+                    errorMessage = "❌ Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng và đảm bảo backend đã chạy.";
+                }
+                // Lỗi từ backend (tiếng Việt) - giữ nguyên message
+                else if (msg.includes("Lỗi") || msg.includes("lỗi") || msg.includes("bắt buộc") || msg.includes("không") || msg.includes("thất bại")) {
+                    // Nếu message đã có emoji, giữ nguyên; nếu không, thêm emoji
+                    errorMessage = msg.startsWith("❌") || msg.startsWith("✅") ? msg : `❌ ${msg}`;
+                }
+                // Lỗi khác - thêm prefix nếu chưa có
+                else {
+                    errorMessage = msg.startsWith("❌") ? msg : `❌ ${msg}`;
+                }
+            } 
+            // Kiểm tra error object
+            else if (err.error) {
+                const errMsg = typeof err.error === 'string' ? err.error : "Đăng ký thất bại! Vui lòng thử lại.";
+                errorMessage = errMsg.startsWith("❌") ? errMsg : `❌ ${errMsg}`;
+            }
+            // Kiểm tra response error
+            else if (err.response) {
+                const responseData = err.response;
+                if (responseData.error) {
+                    errorMessage = responseData.error.startsWith("❌") ? responseData.error : `❌ ${responseData.error}`;
+                } else if (responseData.message) {
+                    errorMessage = responseData.message.startsWith("❌") ? responseData.message : `❌ ${responseData.message}`;
+                }
+            }
+            
+            setError(errorMessage);
+            
+            // Clear error message after 10 seconds
+            setTimeout(() => {
+                setError(null);
+            }, 10000);
+        } finally {
+            setRegisteringCourse(null);
         }
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('vi-VN', {
-            style: 'currency',
-            currency: 'VND'
-        }).format(amount);
-    };
-
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString("vi-VN", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-        });
+    // Kiểm tra môn học đã đăng ký chưa
+    const isCourseRegistered = (courseName: string) => {
+        return registeredCourses.some(
+            course => course.courseName === courseName && course.status === "REGISTERED"
+        );
     };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-orange-900 via-[#5e1f12] to-[#3b0c12] text-orange-50">
             {/* Header */}
-            <header className="sticky top-0 z-20 bg-black/40 backdrop-blur">
-                <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
+            <header className="sticky top-0 z-20 bg-black/40 backdrop-blur border-b border-orange-800/50">
+                <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <span className="font-extrabold text-xl text-orange-400">
+                        <span className="font-extrabold text-2xl text-orange-400">
                             MathBridge
                         </span>
                         <span className="text-sm text-orange-300/80 hidden sm:inline">
@@ -243,227 +213,141 @@ export default function BookSessionPage() {
                     </div>
                     <Link
                         href="/student"
-                        className="text-sm font-semibold text-orange-300 hover:underline"
+                        className="text-sm font-semibold text-orange-300 hover:text-orange-200 hover:underline transition-colors"
                     >
                         ← Quay lại trang học sinh
                     </Link>
                 </div>
             </header>
 
-            <main className="mx-auto max-w-6xl px-4 py-6 space-y-6">
+            <main className="mx-auto max-w-7xl px-4 py-6 space-y-6">
                 {/* Success message */}
                 {success && (
-                    <div className="bg-green-900/30 border border-green-500/50 rounded-xl p-4 text-green-100">
-                        <p className="font-semibold">✓ {success}</p>
+                    <div className="bg-green-900/40 border-2 border-green-500/70 rounded-xl p-6 text-green-100 shadow-lg animate-pulse">
+                        <div className="flex items-center gap-3">
+                            <span className="text-3xl">✅</span>
+                            <p className="font-semibold text-lg flex-1">{success}</p>
+                            <button
+                                onClick={() => setSuccess(null)}
+                                className="text-green-200 hover:text-green-100 text-xl font-bold"
+                            >
+                                ×
+                            </button>
+                        </div>
                     </div>
                 )}
 
                 {/* Error message */}
                 {error && (
-                    <div className="bg-red-900/30 border border-red-500/50 rounded-xl p-4 text-red-100">
-                        <p className="font-semibold">{error}</p>
+                    <div className="bg-red-900/40 border-2 border-red-500/70 rounded-xl p-6 text-red-100 shadow-lg">
+                        <div className="flex items-center gap-3">
+                            <span className="text-3xl">❌</span>
+                            <p className="font-semibold text-lg flex-1">{error}</p>
+                            <button
+                                onClick={() => setError(null)}
+                                className="text-red-200 hover:text-red-100 text-xl font-bold"
+                            >
+                                ×
+                            </button>
+                        </div>
                     </div>
                 )}
 
-                {/* Form chọn giảng viên và ngày */}
-                <section className="bg-black/40 rounded-2xl shadow p-5">
-                    <h1 className="text-2xl font-extrabold text-orange-400 mb-4">
+                {/* Tiêu đề */}
+                <section className="bg-black/40 rounded-2xl shadow-xl p-6 border border-orange-800/50">
+                    <h1 className="text-3xl font-extrabold text-orange-400 flex items-center gap-2 mb-2">
+                        <span className="text-4xl">📚</span>
                         Đăng ký học phần
                     </h1>
+                    <p className="text-orange-200/80">
+                        Chọn môn học bạn muốn đăng ký cho kỳ này. Mỗi môn học chỉ có thể đăng ký một lần.
+                    </p>
+                </section>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div>
-                            <label className="block text-orange-300/80 mb-1 text-sm">
-                                Chọn giảng viên
-                            </label>
-                            {loading ? (
-                                <div className="text-orange-200/60 text-sm">Đang tải...</div>
-                            ) : tutors.length === 0 ? (
-                                <div className="text-red-300 text-sm">Không có giảng viên nào</div>
-                            ) : (
-                                <select
-                                    value={selectedTutor || ""}
-                                    onChange={(e) => setSelectedTutor(parseInt(e.target.value))}
-                                    className="w-full bg-transparent border border-orange-700 rounded-md px-3 py-2 focus:outline-none focus:border-orange-400"
-                                >
-                                    {tutors.map((tutor) => (
-                                        <option key={tutor.id} value={tutor.id} className="bg-gray-900">
-                                            {tutor.fullName || tutor.email} 
-                                            {tutor.hourlyRate > 0 && ` - ${formatCurrency(tutor.hourlyRate)}/giờ`}
-                                            {tutor.rating > 0 && ` ⭐ ${tutor.rating.toFixed(1)}`}
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
+                {/* Danh sách môn học */}
+                <section className="bg-black/40 rounded-2xl shadow-xl p-6 border border-orange-800/50">
+                    <h2 className="text-2xl font-extrabold text-orange-400 mb-6 flex items-center gap-2">
+                        <span className="text-3xl">📖</span>
+                        Danh sách môn học
+                    </h2>
+
+                    {loadingCourses ? (
+                        <div className="text-center py-12">
+                            <p className="text-orange-300 text-lg">Đang tải danh sách môn học...</p>
                         </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {SUBJECTS.map((subject) => {
+                                const isRegistered = isCourseRegistered(subject);
+                                const isRegistering = registeringCourse === subject;
 
-                        <div>
-                            <label className="block text-orange-300/80 mb-1 text-sm">
-                                Chọn ngày học
-                            </label>
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                min={new Date().toISOString().split('T')[0]}
-                                className="w-full bg-transparent border border-orange-700 rounded-md px-3 py-2 focus:outline-none focus:border-orange-400 [color-scheme:dark]"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Thông tin giảng viên được chọn */}
-                    {selectedTutor && tutors.find(t => t.id === selectedTutor) && (
-                        <div className="mt-4 p-4 bg-black/30 rounded-lg border border-orange-700/50">
-                            {(() => {
-                                const tutor = tutors.find(t => t.id === selectedTutor)!;
                                 return (
-                                    <>
-                                        <h3 className="font-semibold text-orange-200 mb-2">
-                                            Thông tin giảng viên
-                                        </h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                            <div>
-                                                <span className="text-orange-300/80">Tên: </span>
-                                                <span className="text-orange-100">{tutor.fullName || tutor.email}</span>
-                                            </div>
-                                            {tutor.subjects && (
-                                                <div>
-                                                    <span className="text-orange-300/80">Môn dạy: </span>
-                                                    <span className="text-orange-100">{tutor.subjects}</span>
-                                                </div>
-                                            )}
-                                            {tutor.experience !== null && (
-                                                <div>
-                                                    <span className="text-orange-300/80">Kinh nghiệm: </span>
-                                                    <span className="text-orange-100">{tutor.experience} năm</span>
-                                                </div>
-                                            )}
-                                            <div>
-                                                <span className="text-orange-300/80">Học phí: </span>
-                                                <span className="text-orange-100 font-semibold">
-                                                    {formatCurrency(tutor.hourlyRate || 200000)}/giờ
+                                    <div
+                                        key={subject}
+                                        className={`bg-gradient-to-br rounded-xl p-5 border-2 transition-all ${
+                                            isRegistered
+                                                ? "from-green-900/50 to-green-800/50 border-green-500/70"
+                                                : "from-orange-900/50 to-orange-800/50 border-orange-700/50 hover:border-orange-500/70"
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between mb-3">
+                                            <h3 className="font-bold text-orange-100 text-lg flex-1 pr-2">
+                                                {subject}
+                                            </h3>
+                                            {isRegistered && (
+                                                <span className="text-xs px-3 py-1 bg-green-900/70 text-green-200 rounded-full whitespace-nowrap">
+                                                    ✓ Đã đăng ký
                                                 </span>
-                                            </div>
+                                            )}
                                         </div>
-                                    </>
+
+                                        {isRegistered ? (
+                                            <div className="mt-4">
+                                                <p className="text-sm text-green-200/80">
+                                                    Bạn đã đăng ký môn học này rồi.
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => handleRegisterCourse(subject)}
+                                                disabled={isRegistering}
+                                                className={`w-full mt-4 px-4 py-3 rounded-lg font-semibold transition-all ${
+                                                    isRegistering
+                                                        ? "bg-orange-700/50 text-orange-300 cursor-wait"
+                                                        : "bg-orange-600 hover:bg-orange-700 text-white shadow-lg hover:shadow-xl"
+                                                }`}
+                                            >
+                                                {isRegistering ? (
+                                                    <span className="flex items-center justify-center gap-2">
+                                                        <span className="animate-spin">⏳</span>
+                                                        Đang đăng ký...
+                                                    </span>
+                                                ) : (
+                                                    <span className="flex items-center justify-center gap-2">
+                                                        <span>📝</span>
+                                                        Đăng ký môn học này
+                                                    </span>
+                                                )}
+                                            </button>
+                                        )}
+                                    </div>
                                 );
-                            })()}
+                            })}
                         </div>
                     )}
                 </section>
 
-                {/* Cài đặt buổi học */}
-                <section className="bg-black/40 rounded-2xl shadow p-5">
-                    <h2 className="text-lg font-bold text-orange-300 mb-4">
-                        Cài đặt buổi học
-                    </h2>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-orange-300/80 mb-1 text-sm">
-                                Môn học
-                            </label>
-                            <input
-                                type="text"
-                                value={subject}
-                                onChange={(e) => setSubject(e.target.value)}
-                                className="w-full bg-transparent border border-orange-700 rounded-md px-3 py-2 focus:outline-none focus:border-orange-400"
-                                placeholder="Ví dụ: Toán học"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-orange-300/80 mb-1 text-sm">
-                                Hình thức học
-                            </label>
-                            <select
-                                value={method}
-                                onChange={(e) => setMethod(e.target.value as "online" | "offline")}
-                                className="w-full bg-transparent border border-orange-700 rounded-md px-3 py-2 focus:outline-none focus:border-orange-400"
-                            >
-                                <option value="online" className="bg-gray-900">Online (Zoom / Google Meet)</option>
-                                <option value="offline" className="bg-gray-900">Học trực tiếp</option>
-                            </select>
-                        </div>
-
-                        <div className="md:col-span-2">
-                            <label className="block text-orange-300/80 mb-1 text-sm">
-                                Ghi chú (tùy chọn)
-                            </label>
-                            <textarea
-                                value={note}
-                                onChange={(e) => setNote(e.target.value)}
-                                rows={3}
-                                className="w-full bg-transparent border border-orange-700 rounded-md px-3 py-2 focus:outline-none focus:border-orange-400"
-                                placeholder="Ví dụ: Ôn chương Hàm số bậc nhất..."
-                            />
-                        </div>
-                    </div>
-                </section>
-
-                {/* Danh sách slots */}
-                {selectedTutor && selectedDate && (
-                    <section className="bg-black/40 rounded-2xl shadow p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-lg font-bold text-orange-300">
-                                Chọn giờ học - {formatDate(selectedDate)}
-                            </h2>
-                            {loadingSlots && (
-                                <span className="text-xs text-orange-300/60 animate-pulse">
-                                    Đang cập nhật...
-                                </span>
-                            )}
-                        </div>
-
-                        {loadingSlots && slots.length === 0 ? (
-                            <div className="text-center py-8">
-                                <p className="text-orange-300">Đang tải danh sách slot...</p>
-                            </div>
-                        ) : slots.length === 0 ? (
-                            <div className="text-center py-8 text-orange-200/80">
-                                Không có slot nào khả dụng cho ngày này.
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                                {slots.map((slot, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => handleBookSlot(slot)}
-                                        disabled={!slot.available || bookingSlot === slot.scheduledDate}
-                                        className={`
-                                            p-3 rounded-lg border text-sm font-semibold transition-all
-                                            ${slot.available
-                                                ? bookingSlot === slot.scheduledDate
-                                                    ? "bg-orange-600 border-orange-400 text-white cursor-wait"
-                                                    : "bg-green-900/30 border-green-500/50 text-green-100 hover:bg-green-900/50 hover:border-green-400 cursor-pointer"
-                                                : "bg-red-900/30 border-red-500/30 text-red-300/60 cursor-not-allowed opacity-60"
-                                            }
-                                        `}
-                                    >
-                                        <div className="text-center">
-                                            <div className="text-base font-bold">{slot.time}</div>
-                                            <div className="text-xs mt-1 opacity-80">
-                                                {slot.available ? "Có thể đăng ký" : slot.status}
-                                            </div>
-                                            {bookingSlot === slot.scheduledDate && (
-                                                <div className="text-xs mt-1 animate-pulse">
-                                                    Đang xử lý...
-                                                </div>
-                                            )}
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        <div className="mt-4 text-xs text-orange-300/60">
-                            💡 Hệ thống tự động cập nhật trạng thái slot mỗi 3 giây để tránh đăng ký trùng.
-                        </div>
-                    </section>
-                )}
+                {/* Thông báo hướng dẫn */}
+                <div className="bg-blue-900/30 border border-blue-500/50 rounded-xl p-4 text-blue-100 text-sm">
+                    <p className="font-semibold mb-1">💡 Hướng dẫn:</p>
+                    <ul className="list-disc list-inside space-y-1 text-blue-200/80">
+                        <li>Chọn môn học bạn muốn đăng ký từ danh sách trên.</li>
+                        <li>Nhấn nút "Đăng ký môn học này" để đăng ký.</li>
+                        <li>Mỗi môn học chỉ có thể đăng ký một lần.</li>
+                        <li>Danh sách môn học đã đăng ký sẽ hiển thị ở trang học sinh.</li>
+                    </ul>
+                </div>
             </main>
         </div>
     );
 }
-
-
